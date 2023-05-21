@@ -243,7 +243,8 @@ module mkDbgTagControllerAXI#(
   //Workaround: these are being enqueued while full in Piccolo. Made the buffer size larger (32 from 4)
   AXI4_Shim#(id_, addr_, TMul#(CheriBusBytes, 8), 0, CapsPerFlit, 0, 1, CapsPerFlit) shimSlave  <- mkAXI4ShimBypassFIFOF;//mkAXI4ShimFF;
   AXI4_Shim#(SizeOf#(ReqId), addr_, TMul#(CheriBusBytes, 8), 0, 0, 0, 0, 0) shimMaster <- mkAXI4ShimBypassFIFOF;
-  let awreqff <- mkBypassFIFOF;
+  // let awreqff <- mkBypassFIFOF;
+  let awreqff <- mkFIFOF;
   let addrOffset <- mkReg(0);
   Reg#(Bool) writeBurst <- mkReg(False);
   Reg#(Bool) reset_done <- mkReg(False);
