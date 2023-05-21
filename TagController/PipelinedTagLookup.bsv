@@ -55,8 +55,8 @@ import VnD::*;
 // RUNTYPE: out of order
 // MUST BE POWER OF 2
 // TOFIX: Unknown bug when set this to 4
-typedef 4 CacheOpsInFlight;
-// typedef 2 CacheOpsInFlight;
+// typedef 4 CacheOpsInFlight;
+typedef 1 CacheOpsInFlight;
 
 // Determines size of buffer before leafCache
 // Allows cached root only requests to not be held up by leaf misses
@@ -462,7 +462,8 @@ module mkPipelinedTagLookup #(
   // NOTE no new fold requests will be created until previous one is sent
   // due to stalls. So no need to worry about enq to full fold request
   // FF#(ProcessedRequest,1) foldRequests <- mkUGFFBypass1();
-  FF#(ProcessedRequest, 1) foldRequests <- mkUGLFF1();
+  // FF#(ProcessedRequest, 1) foldRequests <- mkUGLFF1();
+  FF#(ProcessedRequest, 2) foldRequests <- mkUGFF();
 
   // Pending root requests
   // FF#(ProcessedRequest, 1) pendingRootReqs <- mkUGFFBypass1();
@@ -476,8 +477,8 @@ module mkPipelinedTagLookup #(
   // FF#(LookupResponse, TAdd#(TDiv#(`TagOpsInFlight,2),1)) earlyRsps <- mkUGFFDebug("TagLookup_earlyRsps");
   
   // RUNTYPE: limit latency
-  // FF#(LookupResponse, `TagOpsInFlight) earlyRsps <- mkUGFFDebug("TagLookup_earlyRsps");
-  FF#(LookupResponse, 1) earlyRsps <- mkUGLFF1();
+  FF#(LookupResponse, `TagOpsInFlight) earlyRsps <- mkUGFFDebug("TagLookup_earlyRsps");
+  // FF#(LookupResponse, 1) earlyRsps <- mkUGLFF1();
 
   // Processes request (e.g. from tag controller) and put it into pendingRootReqs 
   function Action handle_new_root_request(CheriTagRequest req);
@@ -606,8 +607,9 @@ module mkPipelinedTagLookup #(
     ) &&
     // Don't let there be two requests in flight with same ID!
     !inFlightRootReqs.isMember(rootTransNum).v &&
-    !inFlightRootReqs.full &&
-    (earlyRsps.notFull || inFlightRootReqs.empty) // Don't issue fresh requst if will need to retry current one next cycle anyway
+    !inFlightRootReqs.full 
+    // &&
+    // (earlyRsps.notFull || inFlightRootReqs.empty) // Don't issue fresh requst if will need to retry current one next cycle anyway
   );
     // RUNTYPE: LOCK ON FOLD 
     // let doFold = foldRequests.notEmpty;
@@ -1213,17 +1215,17 @@ module mkPipelinedTagLookup #(
   endrule
   `endif
 
-  rule debug;
-    debug2("taglookup", $display( 
-      "<time %0t TagLookup> ", $time,
-      "DEBUG:",
-      " rootCache.canPut: ", fshow(rootCache.canPut),
-      " pendingRootReqs.remaining: ", fshow(pendingRootReqs.remaining),
-      " earlyRsps.remaining: ", fshow(earlyRsps.remaining),
-      " pendingLeafReqs.remaining: ", fshow(pendingLeafReqs.remaining),
-      " lateRsps.remaining: ", fshow(lateRsps.remaining)
-    ));
-  endrule
+  // rule debug;
+  //   debug2("taglookup", $display( 
+  //     "<time %0t TagLookup> ", $time,
+  //     "DEBUG:",
+  //     " rootCache.canPut: ", fshow(rootCache.canPut),
+  //     " pendingRootReqs.remaining: ", fshow(pendingRootReqs.remaining),
+  //     " earlyRsps.remaining: ", fshow(earlyRsps.remaining),
+  //     " pendingLeafReqs.remaining: ", fshow(pendingLeafReqs.remaining),
+  //     " lateRsps.remaining: ", fshow(lateRsps.remaining)
+  //   ));
+  // endrule
 
 
   // Sub interfaces
@@ -1323,12 +1325,13 @@ module mkPipelinedTagLookup #(
 
   `ifdef TAGCONTROLLER_BENCHMARKING
   // Does the tag controller still need access to DRAM?
-  method Bool isIdle = (
-    !pendingRootReqs.notEmpty &&
-    inFlightRootReqs.empty &&
-    !pendingLeafReqs.notEmpty &&
-    inFlightLeafReqs.empty
-  );
+  // method Bool isIdle = (
+  //   !pendingRootReqs.notEmpty &&
+  //   inFlightRootReqs.empty &&
+  //   !pendingLeafReqs.notEmpty &&
+  //   inFlightLeafReqs.empty
+  // );
+  method Bool isIdle = True;
   `endif
 
 
