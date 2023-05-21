@@ -56,7 +56,7 @@ typedef struct {
     void Read;
     CheriTagWrite Write;
   } operation;
-  TagRequestID request_id;
+  // TagRequestID request_id;
 `ifdef TAGCONTROLLER_BENCHMARKING
   Bit#(MemTypesCHERI::CheriTransactionIDWidth) bench_id;
 `endif
@@ -64,7 +64,7 @@ typedef struct {
 
 typedef struct {
   LineTags tags;
-  TagRequestID request_id;
+  // TagRequestID request_id;
   `ifdef TAGCONTROLLER_BENCHMARKING
   Bit#(MemTypesCHERI::CheriTransactionIDWidth) bench_id;
   `endif
@@ -75,7 +75,7 @@ typedef struct {
     void Uncovered;
     LineTags Covered;
   } tags;
-  TagRequestID request_id;
+  // TagRequestID request_id;
   `ifdef TAGCONTROLLER_BENCHMARKING
   Bit#(MemTypesCHERI::CheriTransactionIDWidth) bench_id;
   `endif
@@ -249,8 +249,8 @@ module mkMultiLevelTagLookup #(
   // ## calls cache.response.get() so make these larger (size InFlight)
   //
   // pending read requests fifo covered or not
-  // FF#(Bool,2) readReqs <- mkLFF();
-  FF#(ReadReqInfo,2) readReqs <- mkLFF();
+  FF#(Bool,2) readReqs <- mkLFF();
+  // FF#(ReadReqInfo,2) readReqs <- mkLFF();
   // lookup response fifo
   FF#(LookupResponse,2) lookupRsp      <- mkUGFFDebug("TagLookup_lookupRsp");
 
@@ -295,7 +295,7 @@ module mkMultiLevelTagLookup #(
   Reg#(LineTags) pendingTags <- mkConfigReg(unpack(0));
   Reg#(LineTags) pendingCapEnable <- mkConfigReg(unpack(0));
 
-  Reg#(TagRequestID) pendingRequestID <- mkConfigReg(?);
+  // Reg#(TagRequestID) pendingRequestID <- mkConfigReg(?);
   `ifdef TAGCONTROLLER_BENCHMARKING
   Reg#(Bit#(CheriTransactionIDWidth)) pendingBenchID <- mkConfigReg(?);
   `endif
@@ -648,8 +648,8 @@ module mkMultiLevelTagLookup #(
                   `ifdef TAGCONTROLLER_BENCHMARKING
                   bench_id: pendingBenchID,
                   `endif
-                  tags: unpack(0),
-                  request_id: pendingRequestID
+                  tags: unpack(0)
+                  // , request_id: pendingRequestID
                 }
               );
               // prepare jump back to Idle state
@@ -697,8 +697,8 @@ module mkMultiLevelTagLookup #(
                 `ifdef TAGCONTROLLER_BENCHMARKING
                 bench_id: pendingBenchID,
                 `endif
-                tags: ts,
-                request_id: pendingRequestID
+                tags: ts
+                // , request_id: pendingRequestID
               }
             );
             // prepare jump back to Idle state
@@ -946,12 +946,13 @@ module mkMultiLevelTagLookup #(
           // when it's a read
           //////////////////////////////
           tagged Read: begin
-            readReqs.enq(
-              ReadReqInfo{
-                covered: doTagLookup,
-                request_id: req.request_id
-              }
-            );
+            readReqs.enq(doTagLookup);
+            // readReqs.enq(
+            //   ReadReqInfo{
+            //     covered: doTagLookup,
+            //     request_id: req.request_id
+            //   }
+            // );
             nextState = ReadTag;
 
             `ifdef TAGCONTROLLER_BENCHMARKING
@@ -1014,7 +1015,7 @@ module mkMultiLevelTagLookup #(
           pendingCapNumber <= capAddr.capNumber;
           pendingTags      <= newPendingTags;
           pendingCapEnable <= newPendingCapEnable;
-          pendingRequestID <= req.request_id;
+          // pendingRequestID <= req.request_id;
           `ifdef TAGCONTROLLER_BENCHMARKING
           pendingBenchID <= req.bench_id;
           `endif
@@ -1173,44 +1174,75 @@ module mkMultiLevelTagLookup #(
     // lookup Slave response interface
     //////////////////////////////////////////////////////
     interface CheckedGet response;
-      method Bool canGet() = !readReqs.first().covered || lookupRsp.notEmpty();
+      // method Bool canGet() = !readReqs.first().covered || lookupRsp.notEmpty();
+      method Bool canGet() = !readReqs.first() || lookupRsp.notEmpty();
       method CheriTagResponse peek() = CheriTagResponse{
         `ifdef TAGCONTROLLER_BENCHMARKING
         // ignore uncovered case as assume all locations covered
         bench_id: lookupRsp.first().bench_id,
         `endif
-        tags: (readReqs.first().covered) ?
-          tagged Covered lookupRsp.first().tags :
-          tagged Uncovered,
-        request_id: (readReqs.first().covered) ?
-          lookupRsp.first().request_id :
-          readReqs.first().request_id
+      // OLD VERSION
+        tags: (readReqs.first()) ?
+          tagged Covered lookupRsp.first().tags:
+          tagged Uncovered
       };
-      method ActionValue#(CheriTagResponse) get() if (!readReqs.first().covered || lookupRsp.notEmpty());
+
+
+      // NEW VERSION
+      //   tags: (readReqs.first().covered) ?
+      //     tagged Covered lookupRsp.first().tags:
+      //     tagged Uncovered,
+      //   request_id: (readReqs.first().covered) ?
+      //     lookupRsp.first().request_id :
+      //     readReqs.first().request_id
+      // };
+      // method ActionValue#(CheriTagResponse) get() if (!readReqs.first().covered || lookupRsp.notEmpty());
+      method ActionValue#(CheriTagResponse) get() if (!readReqs.first() || lookupRsp.notEmpty());
         // put response together
-        CheriTagResponse tr = ?;
-        
+        // OLD VERSION
+        CheriTagResponse tr = CheriTagResponse{
+          // ignore uncovered case as assume all locations covered
+          `ifdef TAGCONTROLLER_BENCHMARKING
+          bench_id: ?,
+          `endif
+          tags: tagged Uncovered
+        };
         // in case of covered request, dequeue the lookup response
-        if (readReqs.first().covered) begin
+        if (readReqs.first()) begin
           tr = CheriTagResponse{
             `ifdef TAGCONTROLLER_BENCHMARKING
             bench_id: lookupRsp.first().bench_id,
             `endif
-            tags: tagged Covered lookupRsp.first().tags,
-            request_id: lookupRsp.first().request_id
+            tags: tagged Covered lookupRsp.first().tags
           };
           lookupRsp.deq();
-        end else begin 
-          // Uncovered request
-          tr = CheriTagResponse{
-            // ignore uncovered case as assume all locations covered
-            `ifdef TAGCONTROLLER_BENCHMARKING
-            bench_id: ?, // Benchmarking only looks at covered regions
-            `endif
-            tags: tagged Uncovered,
-            request_id: readReqs.first().request_id
-          };
         end
+
+
+        // NEW VERSION
+        // CheriTagResponse tr = ?;
+        
+        // // in case of covered request, dequeue the lookup response
+        // if (readReqs.first().covered) begin
+        //   tr = CheriTagResponse{
+        //     `ifdef TAGCONTROLLER_BENCHMARKING
+        //     bench_id: lookupRsp.first().bench_id,
+        //     `endif
+        //     tags: tagged Covered lookupRsp.first().tags,
+        //     request_id: lookupRsp.first().request_id
+        //   };
+        //   lookupRsp.deq();
+        // end else begin 
+        //   // Uncovered request
+        //   tr = CheriTagResponse{
+        //     // ignore uncovered case as assume all locations covered
+        //     `ifdef TAGCONTROLLER_BENCHMARKING
+        //     bench_id: ?, // Benchmarking only looks at covered regions
+        //     `endif
+        //     tags: tagged Uncovered,
+        //     request_id: readReqs.first().request_id
+        //   };
+        // end
         // dequeue the pending request
         readReqs.deq();
         // debug msg and return response
@@ -1263,6 +1295,7 @@ endmodule
 /*
   descending_urgency = "initialise,drainMemRsp,readTagState,setTagState"
 */
+/*
 //XXX(* synthesize *) can't synthesize with polymorphic interface (=> parameter keyword useless...)
 module mkNullMultiLevelTagLookup (TagLookupIfc);
 
@@ -1400,3 +1433,4 @@ module mkNullMultiLevelTagLookup (TagLookupIfc);
   method events = ?;
   `endif
 endmodule
+*/

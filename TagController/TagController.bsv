@@ -52,7 +52,7 @@ import CacheCore::*;
 `endif
 //import TagLookup::*;
 import MultiLevelTagLookup::*;
-import PipelinedTagLookup::*;
+// import PipelinedTagLookup::*;
 import ConfigReg::*;
 
 /******************************************************************************
@@ -109,20 +109,20 @@ typedef Bit#(8) ReqIdCount;
 
 // // Seems to not be used by anything any more!
 // // There now exist a TagRequestID (used to associate LookupReqInfo with tag responses)
-// typedef struct {
-//   ReqId reqId;
-//   ReqIdCount count; // Less than 256 outstanding transactions for one ID?  Surely?
-// } TagReqId deriving(Bits, Eq, FShow);
+typedef struct {
+  ReqId reqId;
+  ReqIdCount count; // Less than 256 outstanding transactions for one ID?  Surely?
+} TagReqId deriving(Bits, Eq, FShow);
 
 typedef struct {
   ReqId id;
   Bool tagOnlyRead;
-  Bool useResponse;
+  // Bool useResponse;
 } LookupReqInfo deriving(Bits, Eq, FShow);
 
 typedef struct {
   // RUNTYPE: out of order
-  ReqId id;
+  // ReqId id;
   CheriTagResponse rsp;
   Bool tagOnlyRead;
 } LookupRspInfo deriving(Bits, Eq, FShow);
@@ -145,35 +145,35 @@ module mkTagController(TagControllerIfc);
   //TagLookupIfc tagLookup <- mkTagLookup(mID);
 
   // RUNTYPE: Null lookups
-  // TagLookupIfc tagLookup <- mkMultiLevelTagLookup(
-  //                               mID,
-  //                               unpack(fromInteger(table_end_addr)),
-  //                               tableStructure,
-  //                               unpack(fromInteger(table_start_addr)),
-  //                               covered_mem_size
-  //                           );
-  // TagLookupIfc tagLookup <- mkNullMultiLevelTagLookup();
-  // RUNTYPE: Pipelined lookups
-  TagLookupIfc tagLookup <- mkPipelinedTagLookup(
+  TagLookupIfc tagLookup <- mkMultiLevelTagLookup(
                                 mID,
                                 unpack(fromInteger(table_end_addr)),
                                 tableStructure,
                                 unpack(fromInteger(table_start_addr)),
                                 covered_mem_size
                             );
+  // TagLookupIfc tagLookup <- mkNullMultiLevelTagLookup();
+  // RUNTYPE: Pipelined lookups
+  // TagLookupIfc tagLookup <- mkPipelinedTagLookup(
+  //                               mID,
+  //                               unpack(fromInteger(table_end_addr)),
+  //                               tableStructure,
+  //                               unpack(fromInteger(table_start_addr)),
+  //                               covered_mem_size
+  //                           );
 
   // lookup responses fifo
   // Size of these structures must be >= number of outstandring requests from the L2.
   // RUNTYPE: out of order
-  // FFBag#(InFlight, ReqId, LookupRspInfo, InFlight) lookupRsp <- mkFFBag;
-  FF#(LookupRspInfo, InFlight) lookupRsp <- mkUGFF;
+  FFBag#(InFlight, ReqId, LookupRspInfo, InFlight) lookupRsp <- mkFFBag;
+  // FF#(LookupRspInfo, InFlight) lookupRsp <- mkUGFF;
   FFBag#(InFlight, ReqId, AddrFrame, InFlight)     addrFrame <- mkFFBag;
   // RUNTYPE: Buffer pending tag requests
   // Old version was size 2
   // FF#(LookupReqInfo, 2)                            pendingLookups <- mkFF;
   // Now keep track of InFlight pending lookups
-  // FF#(LookupReqInfo, InFlight)                     pendingLookups <- mkFF;
-
+  FF#(LookupReqInfo, InFlight)                     pendingLookups <- mkFF;
+  /*
   // TagLookup cannot handle multiple requests with same id so limit depth to 1
   // This means a request can only be over taken by a maximum of InFlight others
   // IDBag#(InFlight, TagRequestID, LookupReqInfo) pendingLookups <- mkSmallIDBag;
@@ -201,6 +201,7 @@ module mkTagController(TagControllerIfc);
     end
     currentRequestID <= nextId;
   endrule
+  */
 
   // As well as buffering up requests to taglookup (which can vary in response time)
   // FF#(CheriTagRequest, InFlight)                   pendingLookupRequests <- mkLFF();
@@ -216,13 +217,13 @@ module mkTagController(TagControllerIfc);
   FF#(Bit#(0),InFlight) mReqBurst <- mkUGFF;
   // memory responses fifo
   // RUNTYPE: out of order
-  // FF#(CheriMemResponse, TMul#(MaxBurstLength, InFlight)) mRsps <- mkUGFFDebug("TagController_mRsps");
-  FFBag#(
-      InFlight
-    , ReqId
-    , CheriMemResponse
-    , TMul#(MaxBurstLength, InFlight)
-  ) mRsps <- mkFFBag;
+  FF#(CheriMemResponse, TMul#(MaxBurstLength, InFlight)) mRsps <- mkUGFFDebug("TagController_mRsps");
+  // FFBag#(
+  //     InFlight
+  //   , ReqId
+  //   , CheriMemResponse
+  //   , TMul#(MaxBurstLength, InFlight)
+  // ) mRsps <- mkFFBag;
   
   // Forwarding requests from the tag cache takes priority unless we have an ongoing burst request being forwarded,
   // or if there is not enough space for a full burst.
@@ -234,9 +235,11 @@ module mkTagController(TagControllerIfc);
     // Can forward the data request to memory
     mReqs.notFull() && mReqBurst.notFull() && 
     // Can stash info about which tags we want
-    !addrFrame.full() &&
+    !addrFrame.full()
+    //  &&
     // We are not at risk of having two in flight read requests with the same request ID
-    !all(valid, pendingLookups);
+    // !all(valid, pendingLookups)
+    ;
 
   // module rules
   /////////////////////////////////////////////////////////////////////////////
@@ -244,12 +247,30 @@ module mkTagController(TagControllerIfc);
   // drain tag lookup responses out of the tag lookup engine
   rule getTagLookupResponse;
     CheriTagResponse tags <- tagLookup.cache.response.get();
+    // OLD VERSION
+    LookupReqInfo lookup = pendingLookups.first;
 
+    debug2("tagcontroller", $display("<time %0t TagController> Completed lookup response: ", $time, fshow(lookup.id), " - ", fshow(LookupRspInfo{rsp: tags, tagOnlyRead: lookup.tagOnlyRead})));
+    
+    `ifdef TAGCONTROLLER_BENCHMARKING
+    debug2("tracing", $display(
+      "<time %0t Tracing> ", $time, fshow(tags.bench_id), " ",
+      "return from tag lookup"
+    ));  
+    `endif   
+
+    lookupRsp.enq(lookup.id, LookupRspInfo{rsp: tags, tagOnlyRead: lookup.tagOnlyRead});
+    pendingLookups.deq;
+
+
+
+    // NEW VERSION
+    /*
     // Ignore validity - can only get responses for IDs that are inflight
     // LookupReqInfo lookup = pendingLookups.isMember(tags.request_id).d;
 
     // Validity encodes whether read or write response
-    LookupReqInfo matching_lookup = pendingLookups[tags.request_id].d;
+    // LookupReqInfo matching_lookup = pendingLookups[tags.request_id].d;
 
     if (matching_lookup.useResponse) begin
     
@@ -276,6 +297,9 @@ module mkTagController(TagControllerIfc);
       debug2("tagcontroller", $display("<time %0t TagController> Ignored lookup response with id: ", $time, fshow(tags.request_id))); 
     end
     newTagResponse <= VnD{v: True, d: tags.request_id};
+    */
+
+
   endrule
 
   // RUNTYPE: Buffer pending tag requests
@@ -301,7 +325,7 @@ module mkTagController(TagControllerIfc);
   // RUNTYPE: out of order
   
   // OLD version: 
-  /*
+  
   ReqId respID = ?;
   VnD#(LookupRspInfo) tagRsp = VnD{v: False, d: ?};
   CheriMemResponse newResp = mRsps.first;
@@ -345,8 +369,8 @@ module mkTagController(TagControllerIfc);
       newResp.data.cap = tags;
     end else untrackedResponse = True;
   end
-  */
-
+  
+  /*
   // NEW Version
   // nextKey returns same value unless all items with key get removed
   LookupRspInfo firstLookupResp = lookupRsp.first;
@@ -419,13 +443,14 @@ module mkTagController(TagControllerIfc);
       untrackedResponse = True;
     end
   end
+  */
 
   Bool slvCanGet = tagRsp.v || untrackedResponse;
 
   // Calculate peek of memory request interface.
   // RUNTYPE: tag cache gets dram priority
-  // CheriMemRequest memoryGetPeek = (mReqBurst.notEmpty) ? mReqs.first:tagLookup.memory.request.peek();
-  CheriMemRequest memoryGetPeek = (!tagLookup.memory.request.canGet) ? mReqs.first:tagLookup.memory.request.peek();
+  CheriMemRequest memoryGetPeek = (mReqBurst.notEmpty) ? mReqs.first:tagLookup.memory.request.peek();
+  // CheriMemRequest memoryGetPeek = (!tagLookup.memory.request.canGet) ? mReqs.first:tagLookup.memory.request.peek();
   Bool memoryCanGet = mReqBurst.notEmpty || tagLookup.memory.request.canGet;
 
   // Comment in when debugging flow control.
@@ -434,22 +459,22 @@ module mkTagController(TagControllerIfc);
     //                                  $time, slvCanPut, tagLookup.cache.request.canPut(), tagLookup.memory.request.canGet(), mReqs.notFull()));
     // // debug2("tagcontroller", $display("<time %0t TagController> slvCanGet:%x tagRsp.v(1):%x untrackedResponse(1):%x",
     // //                                  $time, slvCanGet, tagRsp.v, untrackedResponse));
-    debug2("tagcontroller", $display("<time %0t TagController> DEBUG: ", $time, 
-      // "memoryCanGet: ", fshow(memoryCanGet), " | ",
-      // "memoryGetPeek: ", fshow(mReqs.first), " | ",
-      // "taglookup cache request canput: ", fshow(tagLookup.cache.request.canPut()), " | ",
-      // "taglookup cache response canget: ", fshow(tagLookup.cache.response.canGet()), " | ",
-      // "pendingLookupRequests.first: ", fshow(pendingLookupRequests.first), " | ",
-      "lookupRsp.remaining: ", fshow(lookupRsp.remaining), " | ",
-      // "lookupRsp.first: ", fshow(lookupRsp.first), " | ",
-      // "lookupRsp.notEmpty: ", fshow(lookupRsp.notEmpty), " | ",
-      // "respID: ", fshow(respID), " | ",
-      // "tagRsp: ", fshow(tagRsp), " | ",
-      // "mRsps.full: ", fshow(mRsps.full), " | ",
-      // "newResp: ", fshow(newResp), " | ",
-      "pendingLookupRequests.remaining: ", fshow(pendingLookupRequests.remaining), " | ",
-      ""
-    ));
+    // debug2("tagcontroller", $display("<time %0t TagController> DEBUG: ", $time, 
+    //   // "memoryCanGet: ", fshow(memoryCanGet), " | ",
+    //   // "memoryGetPeek: ", fshow(mReqs.first), " | ",
+    //   // "taglookup cache request canput: ", fshow(tagLookup.cache.request.canPut()), " | ",
+    //   // "taglookup cache response canget: ", fshow(tagLookup.cache.response.canGet()), " | ",
+    //   // "pendingLookupRequests.first: ", fshow(pendingLookupRequests.first), " | ",
+    //   "lookupRsp.remaining: ", fshow(lookupRsp.remaining), " | ",
+    //   // "lookupRsp.first: ", fshow(lookupRsp.first), " | ",
+    //   // "lookupRsp.notEmpty: ", fshow(lookupRsp.notEmpty), " | ",
+    //   // "respID: ", fshow(respID), " | ",
+    //   // "tagRsp: ", fshow(tagRsp), " | ",
+    //   // "mRsps.full: ", fshow(mRsps.full), " | ",
+    //   // "newResp: ", fshow(newResp), " | ",
+    //   "pendingLookupRequests.remaining: ", fshow(pendingLookupRequests.remaining), " | ",
+    //   ""
+    // ));
   endrule
 
   // module Slave interface
@@ -471,8 +496,8 @@ module mkTagController(TagControllerIfc);
           bench_id: id.transactionID,
           `endif
           addr: unpack(lineAlignedAddr), 
-          operation: tagged Read,
-          request_id: currentRequestID
+          operation: tagged Read
+          // , request_id: currentRequestID
         };
 
         debug2("tagcontroller", $display("<time %0t TagController> New request: ", $time, fshow(req)));
@@ -539,8 +564,8 @@ module mkTagController(TagControllerIfc);
               debug2("tagcontroller", $display("<time %0t TagController> Space left in pendingLookupRequests: ", $time, " ", fshow(pendingLookupRequests.remaining())));    
               pendingLookupRequests.enq(tagReq);
 
-              debug2("tagcontroller", $display("<time %0t TagController> Enqueueing lookup request info into pendingLookups: ", $time, " ", fshow(LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead, useResponse: True})));    
-              newTagRequest <= VnD{v: True, d: LookupReqInfo{id: ?, tagOnlyRead: ?, useResponse: False}};
+              // debug2("tagcontroller", $display("<time %0t TagController> Enqueueing lookup request info into pendingLookups: ", $time, " ", fshow(LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead, useResponse: True})));    
+              // newTagRequest <= VnD{v: True, d: LookupReqInfo{id: ?, tagOnlyRead: ?, useResponse: False}};
 
               newTagWrite = unpack(0);
             end
@@ -553,9 +578,11 @@ module mkTagController(TagControllerIfc);
           debug2("tagcontroller", $display("<time %0t TagController> Space left in pendingLookupRequests: ", $time, " ", fshow(pendingLookupRequests.remaining())));    
           pendingLookupRequests.enq(tagReq);
 
-          debug2("tagcontroller", $display("<time %0t TagController> Enqueueing lookup request info into pendingLookups: ", $time, " ", fshow(LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead, useResponse: True})));    
-          // pendingLookups.insert(currentRequestID, LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead});
-          newTagRequest <= VnD{v: True, d: LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead, useResponse: True}};
+          // debug2("tagcontroller", $display("<time %0t TagController> Enqueueing lookup request info into pendingLookups: ", $time, " ", fshow(LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead, useResponse: True})));    
+          // // pendingLookups.insert(currentRequestID, LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead});
+          // newTagRequest <= VnD{v: True, d: LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead, useResponse: True}};
+          debug2("tagcontroller", $display("<time %0t TagController> Enqueueing lookup request info into pendingLookups: ", $time, " ", fshow(LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead})));    
+          pendingLookups.enq(LookupReqInfo{id: id, tagOnlyRead: tagOnlyRead});
         end
       endmethod
     endinterface
@@ -570,15 +597,15 @@ module mkTagController(TagControllerIfc);
         ReqId id = getRespId(resp);
         // dequeue memory response fifo only when the response is not tagOnlyRead
         // RUNTYPE: out of order
-        // if (!tagsOnlyResponse) mRsps.deq();
-        if (!tagsOnlyResponse) mRsps.deq(id);
+        if (!tagsOnlyResponse) mRsps.deq();
+        // if (!tagsOnlyResponse) mRsps.deq(id);
         // in case of read response ...
         if (resp.operation matches tagged Read .rop) begin
           // on the last flit,
           if (rop.last || rop.tagOnlyRead) begin
             // RUNTYPE: out of order
-            // lookupRsp.deq(id); // dequeue the tag lookup response fifo
-            lookupRsp.deq(); // dequeue the tag lookup response fifo
+            lookupRsp.deq(id); // dequeue the tag lookup response fifo
+            // lookupRsp.deq(); // dequeue the tag lookup response fifo
             addrFrame.deq(id);
             memoryResponseFrame <= 0;  // reset the current frame
           end else memoryResponseFrame <= memoryResponseFrame + 1; // for non last flits, increment frame
@@ -598,8 +625,8 @@ module mkTagController(TagControllerIfc);
       method CheriMemRequest peek() = memoryGetPeek;
       method ActionValue#(CheriMemRequest) get() if (memoryCanGet);
         // RUNTYPE: tag cache gets dram priority
-        // if (mReqBurst.notEmpty) begin
-        if (!tagLookup.memory.request.canGet) begin
+        if (mReqBurst.notEmpty) begin
+        // if (!tagLookup.memory.request.canGet) begin
           if (getLastField(mReqs.first)) mReqBurst.deq();
           mReqs.deq();
         end
@@ -611,8 +638,8 @@ module mkTagController(TagControllerIfc);
     interface CheckedPut response;
       method Bool canPut();
         // RUNTYPE: out of order
-        // return (mRsps.notFull() && tagLookup.memory.response.canPut());
-        return (!mRsps.full() && tagLookup.memory.response.canPut());
+        return (mRsps.notFull() && tagLookup.memory.response.canPut());
+        // return (!mRsps.full() && tagLookup.memory.response.canPut());
       endmethod
       method Action put(CheriMemResponse r);
         // >= instead of = because pipelined cache has multiple IDs!
@@ -624,9 +651,9 @@ module mkTagController(TagControllerIfc);
         end else begin
           debug2("tagcontroller", $display("<time %0t TagController> memory response", $time));
           // RUNTYPE: out of order
-          // mRsps.enq(r);
-          let id = getRespId(r);
-          mRsps.enq(id,r);
+          mRsps.enq(r);
+          // let id = getRespId(r);
+          // mRsps.enq(id,r);
         end
       endmethod
     endinterface
