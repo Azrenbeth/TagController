@@ -1169,7 +1169,7 @@ module mkPipelinedTagLookup #(
   // address to zero when in Init state
   Reg#(CheriPhyAddr) zeroAddr <- mkReg(tagTabStrtAddr);
   // transaction number for memory requests
-  FF#(Bool,8) zero_reqs_in_flight <- mkFFBypass();
+  FF#(Bool,8) zero_reqs_in_flight <- mkFF();
 
   rule initialise (!zeros_sent); 
     `ifndef NO_TAGTABLE_ZEROING
