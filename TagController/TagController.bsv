@@ -122,7 +122,7 @@ typedef struct {
 
 typedef struct {
   // RUNTYPE: out of order
-  ReqId id;
+  // ReqId id;
   CheriTagResponse rsp;
   Bool tagOnlyRead;
 } LookupRspInfo deriving(Bits, Eq, FShow);
@@ -165,8 +165,8 @@ module mkTagController(TagControllerIfc);
   // lookup responses fifo
   // Size of these structures must be >= number of outstandring requests from the L2.
   // RUNTYPE: out of order
-  // FFBag#(InFlight, ReqId, LookupRspInfo, InFlight) lookupRsp <- mkFFBag;
-  FF#(LookupRspInfo, InFlight) lookupRsp <- mkUGFF;
+  FFBag#(InFlight, ReqId, LookupRspInfo, InFlight) lookupRsp <- mkFFBag;
+  // FF#(LookupRspInfo, InFlight) lookupRsp <- mkUGFF;
   FFBag#(InFlight, ReqId, AddrFrame, InFlight)     addrFrame <- mkFFBag;
   // RUNTYPE: Buffer pending tag requests
   // Old version was size 2
@@ -216,13 +216,13 @@ module mkTagController(TagControllerIfc);
   FF#(Bit#(0),InFlight) mReqBurst <- mkUGFF;
   // memory responses fifo
   // RUNTYPE: out of order
-  // FF#(CheriMemResponse, TMul#(MaxBurstLength, InFlight)) mRsps <- mkUGFFDebug("TagController_mRsps");
-  FFBag#(
-      InFlight
-    , ReqId
-    , CheriMemResponse
-    , TMul#(MaxBurstLength, InFlight)
-  ) mRsps <- mkFFBag;
+  FF#(CheriMemResponse, TMul#(MaxBurstLength, InFlight)) mRsps <- mkUGFFDebug("TagController_mRsps");
+  // FFBag#(
+  //     InFlight
+  //   , ReqId
+  //   , CheriMemResponse
+  //   , TMul#(MaxBurstLength, InFlight)
+  // ) mRsps <- mkFFBag;
   
   // Forwarding requests from the tag cache takes priority unless we have an ongoing burst request being forwarded,
   // or if there is not enough space for a full burst.
@@ -257,8 +257,8 @@ module mkTagController(TagControllerIfc);
         "<time %0t TagController> Completed lookup response: ", $time, 
         fshow(matching_lookup.id), " - ", 
         // RUNTYPE: out of order
-        // fshow(LookupRspInfo{rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead})
-        fshow(LookupRspInfo{id: matching_lookup.id, rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead})
+        fshow(LookupRspInfo{rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead})
+        // fshow(LookupRspInfo{id: matching_lookup.id, rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead})
       ));
     
       `ifdef TAGCONTROLLER_BENCHMARKING
@@ -269,8 +269,8 @@ module mkTagController(TagControllerIfc);
       `endif
 
       // RUNTYPE: out of order
-      // lookupRsp.enq(matching_lookup.id, LookupRspInfo{rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead});
-      lookupRsp.enq(LookupRspInfo{id: matching_lookup.id, rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead});
+      lookupRsp.enq(matching_lookup.id, LookupRspInfo{rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead});
+      // lookupRsp.enq(LookupRspInfo{id: matching_lookup.id, rsp: tags, tagOnlyRead: matching_lookup.tagOnlyRead});
       // pendingLookups.remove(tags.request_id);
     end else begin
       debug2("tagcontroller", $display("<time %0t TagController> Ignored lookup response with id: ", $time, fshow(tags.request_id))); 
@@ -301,7 +301,7 @@ module mkTagController(TagControllerIfc);
   // RUNTYPE: out of order
   
   // OLD version: 
-  /*
+  
   ReqId respID = ?;
   VnD#(LookupRspInfo) tagRsp = VnD{v: False, d: ?};
   CheriMemResponse newResp = mRsps.first;
@@ -345,8 +345,8 @@ module mkTagController(TagControllerIfc);
       newResp.data.cap = tags;
     end else untrackedResponse = True;
   end
-  */
-
+  
+  /*
   // NEW Version
   // nextKey returns same value unless all items with key get removed
   LookupRspInfo firstLookupResp = lookupRsp.first;
@@ -419,6 +419,7 @@ module mkTagController(TagControllerIfc);
       untrackedResponse = True;
     end
   end
+  */
 
   Bool slvCanGet = tagRsp.v || untrackedResponse;
 
@@ -440,14 +441,14 @@ module mkTagController(TagControllerIfc);
       // "taglookup cache request canput: ", fshow(tagLookup.cache.request.canPut()), " | ",
       // "taglookup cache response canget: ", fshow(tagLookup.cache.response.canGet()), " | ",
       // "pendingLookupRequests.first: ", fshow(pendingLookupRequests.first), " | ",
-      "lookupRsp.remaining: ", fshow(lookupRsp.remaining), " | ",
+      // "lookupRsp.remaining: ", fshow(lookupRsp.remaining), " | ",
       // "lookupRsp.first: ", fshow(lookupRsp.first), " | ",
       // "lookupRsp.notEmpty: ", fshow(lookupRsp.notEmpty), " | ",
       // "respID: ", fshow(respID), " | ",
       // "tagRsp: ", fshow(tagRsp), " | ",
       // "mRsps.full: ", fshow(mRsps.full), " | ",
       // "newResp: ", fshow(newResp), " | ",
-      "pendingLookupRequests.remaining: ", fshow(pendingLookupRequests.remaining), " | ",
+      // "pendingLookupRequests.remaining: ", fshow(pendingLookupRequests.remaining), " | ",
       ""
     ));
   endrule
@@ -570,15 +571,15 @@ module mkTagController(TagControllerIfc);
         ReqId id = getRespId(resp);
         // dequeue memory response fifo only when the response is not tagOnlyRead
         // RUNTYPE: out of order
-        // if (!tagsOnlyResponse) mRsps.deq();
-        if (!tagsOnlyResponse) mRsps.deq(id);
+        if (!tagsOnlyResponse) mRsps.deq();
+        // if (!tagsOnlyResponse) mRsps.deq(id);
         // in case of read response ...
         if (resp.operation matches tagged Read .rop) begin
           // on the last flit,
           if (rop.last || rop.tagOnlyRead) begin
             // RUNTYPE: out of order
-            // lookupRsp.deq(id); // dequeue the tag lookup response fifo
-            lookupRsp.deq(); // dequeue the tag lookup response fifo
+            lookupRsp.deq(id); // dequeue the tag lookup response fifo
+            // lookupRsp.deq(); // dequeue the tag lookup response fifo
             addrFrame.deq(id);
             memoryResponseFrame <= 0;  // reset the current frame
           end else memoryResponseFrame <= memoryResponseFrame + 1; // for non last flits, increment frame
@@ -611,8 +612,8 @@ module mkTagController(TagControllerIfc);
     interface CheckedPut response;
       method Bool canPut();
         // RUNTYPE: out of order
-        // return (mRsps.notFull() && tagLookup.memory.response.canPut());
-        return (!mRsps.full() && tagLookup.memory.response.canPut());
+        return (mRsps.notFull() && tagLookup.memory.response.canPut());
+        // return (!mRsps.full() && tagLookup.memory.response.canPut());
       endmethod
       method Action put(CheriMemResponse r);
         // >= instead of = because pipelined cache has multiple IDs!
@@ -624,9 +625,9 @@ module mkTagController(TagControllerIfc);
         end else begin
           debug2("tagcontroller", $display("<time %0t TagController> memory response", $time));
           // RUNTYPE: out of order
-          // mRsps.enq(r);
-          let id = getRespId(r);
-          mRsps.enq(id,r);
+          mRsps.enq(r);
+          // let id = getRespId(r);
+          // mRsps.enq(id,r);
         end
       endmethod
     endinterface
