@@ -57,15 +57,17 @@ import sys
 # GZIP
 ##########################
 filename = "dramtraces/recordings/libquantum/trace_patched.gz"
-s = tm.GZIPRequestGenerator(filename, maximum=100000)
-
-# # Run experiment
-e = ex.Experiment("final_gzip", s, "final")
+s = tm.GZIPRequestGenerator(filename, maximum=50000)
+e = ex.Experiment("testing", s)
 e.run()
 
-s = tm.GZIPRequestGenerator(filename, maximum=100000)
-e = ex.Experiment("starting_gzip", s, "starting")
-e.run()
+# # # Run experiment
+# e = ex.Experiment("final_gzip", s, "testing")
+# e.run()
+
+# # s = tm.GZIPRequestGenerator(filename, maximum=100000)
+# # e = ex.Experiment("starting_gzip", s, "starting")
+# # e.run()
 exit(1)
 
 # # Not full throughput!
