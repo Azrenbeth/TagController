@@ -19,8 +19,8 @@ import numpy as np
 # every root line|  1                  |  1
 
 
-width = 0.1
-multiplier = 0
+# width = 0.1
+# multiplier = 0
 
 
 def plot_bunch(
@@ -41,7 +41,7 @@ def plot_bunch(
     ):
         rect = ax.bar(
             x,
-            1 / tpt,
+            tpt,
             width,
             label=lab,
             color=col,
@@ -50,7 +50,7 @@ def plot_bunch(
             edgecolor="black",
             alpha=0.6,
         )
-        ax.bar_label(rect, fmt="%.1f")
+        ax.bar_label(rect, fmt="%.2f")
 
 
 def plot_bar_chart(
@@ -68,7 +68,7 @@ def plot_bar_chart(
     hatchs=["//", "**", "xx", ".."],
     colours=["tab:blue", "tab:green", "tab:orange", "tab:red"],
     # colours=["gainsboro", "gainsboro", "gainsboro", "gainsboro"],
-    figsize=(10, 6),
+    figsize=(10, 4),
     width=0.1,
     outline_width=1,
     y_max=40,
@@ -85,6 +85,7 @@ def plot_bar_chart(
             hatchs=hatchs,
             colours=colours,
             outline_width=outline_width,
+            width=width,
         )
         if i == 0:
             ax.legend()
@@ -96,7 +97,7 @@ def plot_bar_chart(
         #     ncol=4,
         # )
     # plt.axhline(y=1.0, ls="--")
-    ax.set_ylabel("Average cycles per responses")
+    ax.set_ylabel("Mean cycles between responses")
     ax.set_xlabel(xlabel)
     ax.set_title(title)
 
@@ -110,45 +111,44 @@ def plot_bar_chart(
 
 
 ## ROOT ONLY READS
-title = "All leaf tags are zero"
+title = "All root tags are zero"
 save_name = "root_reads"
 experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
 throughputs = [
     # every leaf
-    [0.3329, 0.9995, 0.9995, 0.9993],
+    [
+        3.0036003600360037,
+        1.0005000500050005,
+        1.0005000500050005,
+        1.0007000700070008,
+    ],
     # every root
-    [0.3247, 0.9208, 0.9174, 0.9111],
+    [
+        3.07960796079608,
+        1.086008600860086,
+        1.09000900090009,
+        1.0976097609760977,
+    ],
     # every leaf line
-    [0.3015, 0.7574, 0.7483, 0.7329],
+    [
+        3.3163163163163163,
+        1.3203203203203202,
+        1.3363363363363363,
+        1.3643643643643644,
+    ],
     # every root line
-    [0.0233, 0.0233, 0.0208, 0.0626],
+    [
+        43.0,
+        43.0,
+        48.002002002002,
+        15.96896896896897,
+    ],
 ]
 xlabel = "Stride length"
-experiments.reverse()
-throughputs.reverse()
+# experiments.reverse()
+# throughputs.reverse()
 y_max = 50
 plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
-
-## ROOT ONLY WRITES
-title = "Root only write requests"
-save_name = "root_writes"
-experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
-throughputs = [
-    # every leaf
-    [0.3329, 0.9956, 0.9996, 0.9995],
-    # every root
-    [0.3247, 0.9208, 0.9174, 0.9111],
-    # every leaf line
-    [0.3012, 0.7395, 0.7603, 0.7433],
-    # every root line
-    [0.0233, 0.0248, 0.0223, 0.0670],
-]
-experiments.reverse()
-throughputs.reverse()
-xlabel = "Stride length"
-y_max = 50
-plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
-
 
 ## BOTH reads
 title = "All root tags are one"
@@ -156,36 +156,127 @@ save_name = "both_reads"
 experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
 throughputs = [
     # every leaf
-    [0.1971, 0.4807, 0.9176, 0.9111],
+    [
+        5.073407340734073,
+        2.08030803080308,
+        1.0898089808980898,
+        1.0976097609760977,
+    ],
     # every root
-    [0.0698, 0.0795, 0.0780, 0.0727],
+    [
+        14.328232823282328,
+        12.57905790579058,
+        12.822982298229823,
+        13.746774677467748,
+    ],
     # every leaf line
-    [0.0236, 0.0226, 0.0207, 0.0742],
+    [
+        42.308308308308305,
+        44.294294294294296,
+        48.252252252252255,
+        13.485485485485485,
+    ],
     # every root line
-    [0.0116, 0.0116, 0.0118, 0.0346],
+    [
+        86.0,
+        86.0,
+        85.0,
+        28.92792792792793,
+    ],
 ]
-experiments.reverse()
-throughputs.reverse()
+# experiments.reverse()
+# throughputs.reverse()
 xlabel = "Stride length"
 y_max = 90
 plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
 
+
+## ROOT ONLY WRITES
+title = "All root tags are zero"
+save_name = "root_writes"
+experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
+throughputs = [
+    # every leaf
+    [
+        3.0,
+        1.0,
+        1.0,
+        1.0,
+    ],
+    # every root
+    [
+        3.077558934585162,
+        1.087253801408307,
+        1.0913358505969997,
+        1.0988876415960813,
+    ],
+    # every leaf line
+    [
+        3.300375469336671,
+        1.3304130162703378,
+        1.3529411764705883,
+        1.3829787234042554,
+    ],
+    # every root line
+    [
+        43.0,
+        43.0,
+        48.0,
+        15.993742177722154,
+    ],
+]
+# experiments.reverse()
+# throughputs.reverse()
+xlabel = "Stride length"
+y_max = 50
+plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
+
+
 ## BOTH writes
-title = "Root and leaf write requests"
+title = "All root tags are one"
 save_name = "both_writes"
 experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
 throughputs = [
     # every leaf
-    [0.1971, 0.4807, 0.9176, 0.9111],
+    [
+        4.088208820882088,
+        2.0838083808380836,
+        1.0922092209220922,
+        1.1048104810481048,
+    ],
     # every root
-    [0.0698, 0.0795, 0.0780, 0.0727],
+    [
+        15.38033803380338,
+        12.757975797579759,
+        13.68056805680568,
+        14.150215021502149,
+    ],
     # every leaf line
-    [0.0236, 0.0226, 0.0207, 0.0742],
+    [
+        48.748435544430535,
+        44.3153942428035,
+        52.25531914893617,
+        17.813516896120152,
+    ],
     # every root line
-    [0.0116, 0.0116, 0.0118, 0.0346],
+    [
+        94.43804755944932,
+        88.11264080100125,
+        106.63579474342929,
+        44.53316645807259,
+    ],
 ]
-experiments.reverse()
-throughputs.reverse()
+# experiments.reverse()
+# throughputs.reverse()
 xlabel = "Stride length"
-y_max = 90
-plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
+y_max = 110
+y_interval = 10
+plot_bar_chart(
+    title,
+    save_name,
+    experiments,
+    throughputs,
+    xlabel,
+    y_max=y_max,
+    y_interval=y_interval,
+)
