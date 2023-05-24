@@ -1,5 +1,5 @@
-# Graphs 
-import matplotlib.pyplot as plt 
+# Graphs
+import matplotlib.pyplot as plt
 import numpy as np
 
 # Colour for each type
@@ -12,103 +12,180 @@ import numpy as np
 ## Read and write throughput
 ## table of miss rates
 # experiment     | root miss interval  |  leaf miss interval
-#--------------------------------------------
-# every leaf     |   512*128           |  512 
+# --------------------------------------------
+# every leaf     |   512*128           |  512
 # every root     |  512                |  4
 # every leaf line|  128                |  1
 # every root line|  1                  |  1
 
-## ROOT ONLY
-fig, ax = plt.subplots(figsize=(10,7))
+
 width = 0.1
 multiplier = 0
 
-designs = ["Original", "Improved state machine", "Pipelined", "Pipelined and OOO"]
-colours=["tab:blue","tab:orange","tab:green","tab:red"]
-hatchs = ["/", "|", "x", "."]
-n = np.arange(len(designs))
 
-experiments = []
+def plot_bunch(
+    group_num,
+    tpts,
+    ax,
+    designs=["Original", "Improved single-cache", "Simple pipelined", "OOO Pipelined"],
+    hatchs=["/", "|", "x", "."],
+    colours=["tab:blue", "tab:green", "tab:orange", "tab:red"],
+    width=0.1,
+    outline_width=0,
+):
 
-def plot_bunch(tpts):
-    global multiplier
-    offset = width*multiplier
-    xs = offset + n*width
-    for x,(tpt,(lab,(col,h))) in zip(xs, zip(tpts, zip(designs,zip(colours,hatchs)))):
-        rect = ax.bar(x, tpt,width,label=lab, color=col, hatch=h)
-        # ax.bar_label(rect)
-    print(offset + n*width)
-    multiplier += 5
-
-# read every tag 
-# offset = width*multiplier
-# experiments += ["read every leaf tag"]
-# tpts = [0.3333,0.9998,0.9998,0.9998]
-# xs = offset + n*width
-# for x,(tpt,(lab,col)) in zip(xs, zip(tpts, zip(designs,colours))):
-#     rect = ax.bar(x, tpt,width,label=lab, color=col)
-#     # ax.bar_label(rect)
-# print(offset + n*width)
-# multiplier += 5
-
-experiments += ["(read) 1 leaf tag"]
-tpts = [0.3333,0.9998,0.9998,0.9998]
-plot_bunch(tpts)
-ax.legend()
-
-# # write every tag 
-
-# experiments += ["(write) 1 leaf tag"]
-# tpts = [0.3332,0.9986,0.9995,0.9993]
-# plot_bunch(tpts)
-
-# read every root
-
-experiments += ["(read) 1 root tag"]
-tpts = [0.3312,0.9715,0.9679,0.9642]
-plot_bunch(tpts)
-
-# # write every root
-# experiments += ["(write) 1 root tag"]
-# tpts = [0.3312,0.9718,0.9682,0.9647]
-# plot_bunch(tpts)
-
-# read every leaf line
-experiments += ["(read) 512 leaf tags"]
-tpts = [0.3251,0.9008,0.8896,0.8786]
-plot_bunch(tpts)
- 
-# # write every leaf line
-# experiments += ["(write 512 leaf tags"]
-# tpts = [0.3247,0.8992,0.8896,0.8771]
-# plot_bunch(tpts)
-
-# read every root line
-
-experiments += ["(read) 512 root tags"]
-tpts = [0.0769,0.0769,0.0556,0.1178]
-plot_bunch(tpts)
-
-# # write every leaf line
-# experiments += ["(write) 512 root tags"]
-# tpts = [0.0769,0.0782,0.0564,0.1194]
-# plot_bunch(tpts)
+    offset = width * (len(designs) + 1) * group_num
+    xs = offset + np.arange(len(designs)) * width
+    for x, (tpt, (lab, (col, h))) in zip(
+        xs, zip(tpts, zip(designs, zip(colours, hatchs)))
+    ):
+        rect = ax.bar(
+            x,
+            1 / tpt,
+            width,
+            label=lab,
+            color=col,
+            hatch=h,
+            lw=outline_width,
+            edgecolor="black",
+            alpha=0.6,
+        )
+        ax.bar_label(rect, fmt="%.1f")
 
 
-ax.set_ylabel("Requests completed per cycle)")
-ax.set_title("Throughput for root-only requests")
-ax.set_xticks(np.arange(len(experiments))*5*width + 1.5*width, experiments)
-plt.savefig(f"Logs/figures/bar_sequential_roots.png")
+def plot_bar_chart(
+    title,
+    save_name,
+    experiments,
+    throughputs,
+    xlabel,
+    designs=[
+        "Original",
+        "Improved single-cache",
+        "Simple pipelined",
+        "Out-of-order pipelined",
+    ],
+    hatchs=["//", "**", "xx", ".."],
+    colours=["tab:blue", "tab:green", "tab:orange", "tab:red"],
+    # colours=["gainsboro", "gainsboro", "gainsboro", "gainsboro"],
+    figsize=(10, 6),
+    width=0.1,
+    outline_width=1,
+    y_max=40,
+    y_interval=5,
+):
+    fig, ax = plt.subplots(layout="constrained", figsize=figsize)
+    multiplier = 0
+    for i, tpts in enumerate(throughputs):
+        multiplier = plot_bunch(
+            i,
+            tpts,
+            ax,
+            designs=designs,
+            hatchs=hatchs,
+            colours=colours,
+            outline_width=outline_width,
+        )
+        if i == 0:
+            ax.legend()
+        # ax.legend(
+        #     loc="upper center",
+        #     # bbox_to_anchor=(0.5, -0.05),
+        #     bbox_to_anchor=(0.5, -0.1),
+        #     fancybox=True,
+        #     ncol=4,
+        # )
+    # plt.axhline(y=1.0, ls="--")
+    ax.set_ylabel("Average cycles per responses")
+    ax.set_xlabel(xlabel)
+    ax.set_title(title)
+
+    xtick_offset = 1.5 * width
+    xtick_stride = 5 * width
+    xticks = np.arange(len(experiments)) * xtick_stride + xtick_offset
+
+    ax.set_xticks(xticks, experiments)
+    ax.set_yticks(np.arange(0, y_max + y_interval, y_interval))
+    plt.savefig(f"Logs/figures/bar_{save_name}.png")
 
 
-## ROOT AND LEAF
-# read every tag 
-# write every tag 
-# read every root
-# write every root
-# read every leaf line
-# write every leaf line
-# read every root line
-# write every leaf line
+## ROOT ONLY READS
+title = "All leaf tags are zero"
+save_name = "root_reads"
+experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
+throughputs = [
+    # every leaf
+    [0.3329, 0.9995, 0.9995, 0.9993],
+    # every root
+    [0.3247, 0.9208, 0.9174, 0.9111],
+    # every leaf line
+    [0.3015, 0.7574, 0.7483, 0.7329],
+    # every root line
+    [0.0233, 0.0233, 0.0208, 0.0626],
+]
+xlabel = "Stride length"
+experiments.reverse()
+throughputs.reverse()
+y_max = 50
+plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
+
+## ROOT ONLY WRITES
+title = "Root only write requests"
+save_name = "root_writes"
+experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
+throughputs = [
+    # every leaf
+    [0.3329, 0.9956, 0.9996, 0.9995],
+    # every root
+    [0.3247, 0.9208, 0.9174, 0.9111],
+    # every leaf line
+    [0.3012, 0.7395, 0.7603, 0.7433],
+    # every root line
+    [0.0233, 0.0248, 0.0223, 0.0670],
+]
+experiments.reverse()
+throughputs.reverse()
+xlabel = "Stride length"
+y_max = 50
+plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
 
 
+## BOTH reads
+title = "All root tags are one"
+save_name = "both_reads"
+experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
+throughputs = [
+    # every leaf
+    [0.1971, 0.4807, 0.9176, 0.9111],
+    # every root
+    [0.0698, 0.0795, 0.0780, 0.0727],
+    # every leaf line
+    [0.0236, 0.0226, 0.0207, 0.0742],
+    # every root line
+    [0.0116, 0.0116, 0.0118, 0.0346],
+]
+experiments.reverse()
+throughputs.reverse()
+xlabel = "Stride length"
+y_max = 90
+plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
+
+## BOTH writes
+title = "Root and leaf write requests"
+save_name = "both_writes"
+experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
+throughputs = [
+    # every leaf
+    [0.1971, 0.4807, 0.9176, 0.9111],
+    # every root
+    [0.0698, 0.0795, 0.0780, 0.0727],
+    # every leaf line
+    [0.0236, 0.0226, 0.0207, 0.0742],
+    # every root line
+    [0.0116, 0.0116, 0.0118, 0.0346],
+]
+experiments.reverse()
+throughputs.reverse()
+xlabel = "Stride length"
+y_max = 90
+plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
