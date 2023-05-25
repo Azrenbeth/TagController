@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2011 Jonathan Woodruff
  * Copyright (c) 2014 Alexandre Joannou
+ * Copyright (c) 2023 William Ashton
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of

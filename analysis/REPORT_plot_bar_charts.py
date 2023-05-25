@@ -1,3 +1,5 @@
+# Copyright 2023 William Ashton
+
 # Graphs
 import matplotlib.pyplot as plt
 import numpy as np
@@ -236,6 +238,55 @@ plot_bar_chart(title, save_name, experiments, throughputs, xlabel, y_max=y_max)
 title = "All root tags are one"
 save_name = "both_writes"
 experiments = ["16 B", "2 KiB", "8 KiB", "1 MiB"]
+throughputs = [
+    # every leaf
+    [
+        4.088208820882088,
+        2.0838083808380836,
+        1.0922092209220922,
+        1.1048104810481048,
+    ],
+    # every root
+    [
+        15.38033803380338,
+        12.757975797579759,
+        13.68056805680568,
+        14.150215021502149,
+    ],
+    # every leaf line
+    [
+        48.748435544430535,
+        44.3153942428035,
+        52.25531914893617,
+        17.813516896120152,
+    ],
+    # every root line
+    [
+        94.43804755944932,
+        88.11264080100125,
+        106.63579474342929,
+        44.53316645807259,
+    ],
+]
+# experiments.reverse()
+# throughputs.reverse()
+xlabel = "Stride length"
+y_max = 110
+y_interval = 10
+plot_bar_chart(
+    title,
+    save_name,
+    experiments,
+    throughputs,
+    xlabel,
+    y_max=y_max,
+    y_interval=y_interval,
+)
+
+## BOTH writes
+title = "Overtaking the leaf cache"
+save_name = "overtake_leaf"
+experiments = ["1", "5"]
 throughputs = [
     # every leaf
     [

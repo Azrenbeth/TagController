@@ -1,3 +1,5 @@
+# Copyright 2023 William Ashton
+
 import trace_manager as tm
 import run_experiments as ex
 import log_consumer as lc
@@ -100,34 +102,34 @@ exit(1)
 # [r_add.read_root_only(miss=False) for _ in range(100)]
 ## Read root miss
 # [r_add.read_root_only(miss=True) for _ in range(100)]
-## Read both hit hit 
+## Read both hit hit
 # [r_add.read_both(r_miss=False,l_miss=False) for _ in range(100)]
 ## Read both hit miss
 # [r_add.read_both(r_miss=False,l_miss=True) for _ in range(100)]
-## Read both miss miss 
+## Read both miss miss
 # [r_add.read_both(r_miss=True,l_miss=True) for _ in range(100)]
 
-## Set both hit hit 
+## Set both hit hit
 # [s_add.new_set(r_miss=False,l_miss=False) for _ in range(100)]
-## Set both hit miss 
+## Set both hit miss
 # [s_add.new_set(r_miss=False,l_miss=True) for _ in range(100)]
-## Set Both miss miss 
+## Set Both miss miss
 # [s_add.new_set(r_miss=True,l_miss=True) for _ in range(100)]
 
-## Clear root hit 
+## Clear root hit
 # [c_add.new_clear_root(miss=False) for _ in range(100)]
-## Clear root miss 
+## Clear root miss
 # [c_add.new_clear_root(miss=True) for _ in range(100)]
-## Clear both hit hit 
+## Clear both hit hit
 # [c_add.new_clear_both(r_miss=False,l_miss=False) for _ in range(100)]
-## Clear both hit miss 
+## Clear both hit miss
 # [c_add.new_clear_both(r_miss=False,l_miss=True) for _ in range(100)]
-## Clear Both miss miss 
+## Clear Both miss miss
 # [c_add.new_clear_both(r_miss=True,l_miss=True) for _ in range(100)]
 
-## Fold hit hit 
+## Fold hit hit
 # [c_add.new_fold(r_miss=False,l_miss=False) for _ in range(100)]
-## Fold hit miss 
+## Fold hit miss
 # [c_add.new_fold(r_miss=False,l_miss=True) for _ in range(100)]
 ## Fold miss miss
 # [c_add.new_fold(r_miss=True,l_miss=True) for _ in range(100)]
@@ -271,7 +273,7 @@ exit(1)
 # - [ ] IDEA 1: dont' commit write unless will extract (added complexity!!)
 # - [x] IDEA 2: make write resp buffer hold more info!!!
 # - Need to worry about getting too full?
-# - IDEA: make writeresps a simple register 
+# - IDEA: make writeresps a simple register
 #         if that register contains something, then set commit = False in finishReq
 #         also disallow putting
 

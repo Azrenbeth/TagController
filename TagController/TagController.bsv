@@ -3,6 +3,7 @@
  * Copyright (c) 2013 Philip Withnall
  * Copyright (c) 2013 Robert M. Norton
  * Copyright (c) 2014-2016 Alexandre Joannou
+ * Copyright (c) 2023 William Ashton
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of

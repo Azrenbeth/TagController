@@ -1,3 +1,5 @@
+# Copyright 2023 William Ashton
+
 import numpy as np
 import re
 

@@ -1,3 +1,5 @@
+# Copyright 2023 William Ashton
+
 import trace_manager as tm
 import run_experiments as ex
 import log_consumer as lc
@@ -88,7 +90,25 @@ def sequential_writes(l_stride=1, r_stride=0, n=10000, leaf_also=False):
 # run_set("write_every_leaf_and_leaf", lambda : sequential_writes(1,0, leaf_also=True, n=10000))
 # run_set("write_every_root_and_leaf", lambda : sequential_writes(0,1, leaf_also=True, n=10000))
 # run_set("write_every_leaf_line_and_leaf", lambda : sequential_writes(512,0, n=1000, leaf_also=True))
-# run_set("write_every_root_line_and_leaf", lambda : sequential_writes(0,512, n=1000, leaf_also=True))
+# run_set(
+#     "write_every_root_line_and_leaf",
+#     lambda: sequential_writes(
+#         0,
+#         512,
+#         n=1000,
+#         leaf_also=True,
+#     ),
+# )
+# run_set(
+#     "write_every_root_line_and_leaf",
+#     lambda: sequential_writes(
+#         0,
+#         512,
+#         n=1000,
+#         leaf_also=True,
+#     ),
+#     simulation_names=["starting"],
+# )
 
 #####################
 # Skipping leaf cache
@@ -97,75 +117,99 @@ def leaf_skipping(burst_size=1, n=10000):
     s = tm.FullRequestSeq()
     hit_a = 0
 
-    next_root_miss = 512 * 512 * 16
-    root_stride = 512 * 512 * 16
+    next_root_miss = 1000 * 512 * 128 * 16
+    root_stride = 512 * 128 * 16
 
     next_leaf_miss = 512 * 16
     leaf_stride = 512 * 16
 
     for i in range(n):
-        s.add_read(0)
-        if i % 50 == 0:
+        if (i % (100 - burst_size)) == 0:
             s.add_write(next_leaf_miss, 0, 1, init=True)
             for _ in range(burst_size):
                 s.add_read(next_leaf_miss)
             next_leaf_miss += leaf_stride
-        if (i - 10) % 50 == 0:
-            s.add_read(next_root_miss)
-            next_root_miss + root_stride
+        else:
+            s.add_read(0)
+        # if ((i - 40) % (100 - burst_size)) == 0:
+        #     s.add_read(next_root_miss)
+        #     next_root_miss += root_stride
 
     return s
 
 
 # DONE
-run_set(
-    "overtaking_leaf_single",
-    lambda: leaf_skipping(1),
-    simulation_names=["not_ooo", "final"],
-)
-run_set(
-    "overtaking_leaf_two",
-    lambda: leaf_skipping(5),
-    simulation_names=["not_ooo", "final"],
-)
-run_set(
-    "overtaking_leaf_ten",
-    lambda: leaf_skipping(8),
-    simulation_names=["not_ooo", "final"],
-)
-# run_set("overtaking_leaf_single", lambda: leaf_skipping(1))
-# run_set("overtaking_leaf_ten", lambda: leaf_skipping(10))
+# run_set(
+#     "overtaking_leaf_single",
+#     lambda: leaf_skipping(1),
+#     simulation_names=["not_ooo", "final"],
+# )
+# run_set(
+#     "overtaking_leaf_two",
+#     lambda: leaf_skipping(4),
+#     simulation_names=["not_ooo", "final"],
+# )
+# run_set(
+#     "overtaking_leaf_ten",
+#     lambda: leaf_skipping(5),
+#     simulation_names=["not_ooo", "final"],
+# )
+# # run_set("overtaking_leaf_single", lambda: leaf_skipping(1))
+# # run_set("overtaking_leaf_ten", lambda: leaf_skipping(10))
 
 #####################
 # Non blocking miss
 #####################
-def non_blocking(burst_size=1, n=1000):
+def non_blocking(burst_size=1, n=10000):
     s = tm.FullRequestSeq()
     hit_a = 0
 
-    next_miss = 512 * 128 * 16
-    root_stride = 512 * 128 * 16
+    next_leaf_miss = 128 * 16
+    leaf_stride = 512 * 16
+
+    # Ensure these hit in the cache
+    s.add_read(0)
+    s.add_read(next_leaf_miss)
+    s.add_write(next_leaf_miss, 0, 1, init=True)
+
+    leaf_hit = next_leaf_miss
+    next_leaf_miss += leaf_stride
 
     for i in range(n):
-        s.add_read(0)
-        if i % 20 == 0:
+        if (i % (100 - burst_size)) == 0:
+            s.add_write(next_leaf_miss, 0, 1, init=True)
             for _ in range(burst_size):
-                s.add_read(next_miss)
-            next_miss += root_stride
+                s.add_read(next_leaf_miss)
+            next_leaf_miss += leaf_stride
+        else:
+            # if ((i - burst_size) % 2) == 0:
+            #     s.add_read(0)
+            # else:
+            s.add_read(leaf_hit)
 
     return s
 
 
 # # # DONE
-# run_set(
-#     "non_blocking_single",
-#     lambda: non_blocking(1),
-#     simulation_names=["not_ooo", "final"],
-# )
-# run_set(
-#     "non_blocking_four",
-#     lambda: non_blocking(4),
-#     simulation_names=["not_ooo", "final"],
-# )
+run_set(
+    "non_blocking_single",
+    lambda: non_blocking(1),
+    simulation_names=["not_ooo", "final"],
+)
+run_set(
+    "non_blocking_three",
+    lambda: non_blocking(2),
+    simulation_names=["not_ooo", "final"],
+)
+run_set(
+    "non_blocking_four",
+    lambda: non_blocking(3),
+    simulation_names=["not_ooo", "final"],
+)
+run_set(
+    "non_blocking_five",
+    lambda: non_blocking(4),
+    simulation_names=["not_ooo", "final"],
+)
 # # run_set("non_blocking_single", lambda: non_blocking(1))
 # # run_set("non_blocking_four", lambda: non_blocking(4))

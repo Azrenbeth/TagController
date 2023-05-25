@@ -1,3 +1,5 @@
+# Copyright 2023 William Ashton
+
 import trace_manager as tm
 import asyncio
 

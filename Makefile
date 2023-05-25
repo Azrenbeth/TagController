@@ -2,6 +2,7 @@
 # Copyright (c) 2018-2022 Alexandre Joannou
 # Copyright (c) 2018 Matthew Naylor
 # Copyright (c) 2018 Jonathan Woodruff
+# Copyright (c) 2023 Alexandre Joannou
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of

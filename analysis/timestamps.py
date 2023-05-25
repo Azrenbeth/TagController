@@ -1,3 +1,5 @@
+# Copyright 2023 William Ashton
+
 import re
 import numpy as np
 import matplotlib.pyplot as plt

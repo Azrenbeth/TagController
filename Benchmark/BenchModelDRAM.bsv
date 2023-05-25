@@ -1,6 +1,7 @@
 /* Copyright 2015 Matthew Naylor
  * Copyright 2018 Jonathan Woodruff
  * Copyright 2022 Alexandre Joannou
+ * Copyright 2023 William Ashton
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of

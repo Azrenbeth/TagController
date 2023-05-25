@@ -1,3 +1,5 @@
+# Copyright 2023 William Ashton
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -24,19 +26,25 @@ def plot_all(
     limits=10000,
     figsize=(7, 7),
     start=0,
+    no_full=False,
 ):
     throughput_vals = "------------------\n"
     throughput_vals += f"{experiment_name}\n"
     throughput_vals += "------------------\n"
+    copypaste_delays = ""
     fig, ax = plt.subplots(figsize=figsize)
     for sim, col in zip(simulation_names, colours):
         throughput = plot_progress(
             ax, f"Logs/end_times/{sim}_{experiment_name}.npy", col, sim, start
         )
         throughput_vals += f"{sim}: {throughput:.4f} ; {1/throughput:.2f}\n"
-    ax.set_xlim(0, limits)
-    ax.set_ylim(0, limits)
-    ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3", label="1 request per cycle")
+        copypaste_delays += f"{1/throughput},"
+    if not (no_full):
+        ax.set_xlim(0, limits)
+        ax.set_ylim(0, limits)
+        ax.plot(
+            ax.get_xlim(), ax.get_ylim(), ls="--", c=".3", label="1 request per cycle"
+        )
     plt.xlabel("Number of clock cycles")
     plt.ylabel("Memory reads completed")
     plt.legend()
@@ -44,6 +52,7 @@ def plot_all(
     with open(f"Logs/throughputs/{experiment_name}.txt", "w") as throughput_file:
         print(throughput_vals, end="", file=throughput_file)
     print(throughput_vals)
+    print(f"[{copypaste_delays}],")
 
 
 ############
@@ -73,8 +82,8 @@ plot_all("write_every_root_line", limits=1000, start=200)
 # DONE
 plot_all("write_every_leaf_and_leaf")
 plot_all("write_every_root_and_leaf")
-plot_all("write_every_leaf_line_and_leaf", limits=1000, start=200)
-plot_all("write_every_root_line_and_leaf", limits=1000, start=200)
+plot_all("write_every_leaf_line_and_leaf", limits=1000, start=500)
+plot_all("write_every_root_line_and_leaf", limits=1000, start=500, no_full=True)
 
 ############
 # Skipping leaf cache
@@ -91,7 +100,9 @@ plot_all("overtaking_leaf_ten", limits=10000, simulation_names=["not_ooo", "fina
 ############
 # DONE
 plot_all("non_blocking_single", limits=1000, simulation_names=["not_ooo", "final"])
+plot_all("non_blocking_three", limits=1000, simulation_names=["not_ooo", "final"])
 plot_all("non_blocking_four", limits=1000, simulation_names=["not_ooo", "final"])
+plot_all("non_blocking_five", limits=1000, simulation_names=["not_ooo", "final"])
 # plot_all("non_blocking_single", limits=1000)
 # plot_all("non_blocking_four", limits=1000)
 
